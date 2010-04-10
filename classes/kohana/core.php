@@ -125,6 +125,11 @@ class Kohana_Core {
 	 */
 	public static $config;
 
+	/**
+	 * @var  object  i18n object
+	 */
+	public static $i18n;
+
 	// Is the environment initialized?
 	protected static $_init = FALSE;
 
@@ -310,6 +315,9 @@ class Kohana_Core {
 
 		// Load the config
 		Kohana::$config = Kohana_Config::instance();
+
+		// Load the i18n
+		Kohana::$i18n = Kohana_I18n::instance();
 
 		if (isset($benchmark))
 		{
