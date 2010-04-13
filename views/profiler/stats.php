@@ -5,76 +5,50 @@
 </style>
 
 <?php
-// This whole block should probably be moved to a method in Profiler, called "group_stats".
-// It calculates the max values (not min, average and total for now) for each group,
-// and in doing so does not take individual tokens into account but only the totals for each named subgroup.
-foreach (Profiler::groups() as $group => $benchmarks)
-{
-	foreach ($benchmarks as $name => $tokens)
-	{
-		$stats[$group][$name] = Profiler::stats($tokens);
-	}
-
-	foreach ($stats as $group => $names)
-	{
-		foreach ($names as $name => $stat)
-		{
-			foreach ($stat as $key => $results)
-			{
-				if ($key !== 'total')
-					continue;
-
-				if ( ! isset($groups[$group]['max']['time']) OR $groups[$group]['max']['time'] < $results['time'])
-				{
-					$groups[$group]['max']['time'] = $results['time'];
-				}
-
-				if ( ! isset($groups[$group]['max']['memory']) OR $groups[$group]['max']['memory'] < $results['memory'])
-				{
-					$groups[$group]['max']['memory'] = $results['memory'];
-				}
-			}
-		}
-	}
-}
+$group_stats      = Profiler::group_stats();
+$group_cols       = array('min', 'max', 'average', 'total');
+$application_cols = array('min', 'max', 'average', 'current');
 ?>
 
 <div class="kohana">
 	<?php foreach (Profiler::groups() as $group => $benchmarks): ?>
 	<table class="profiler">
 		<tr class="group">
-			<th class="name" colspan="5"><?php echo __(ucfirst($group)) ?></th>
+			<th class="name" rowspan="2"><?php echo __(ucfirst($group)) ?></th>
+			<td class="time" colspan="4"><?php echo number_format($group_stats[$group]['total']['time'], 6) ?> <abbr title="seconds">s</abbr></td>
+		</tr>
+		<tr class="group">
+			<td class="memory" colspan="4"><?php echo number_format($group_stats[$group]['total']['memory'] / 1024, 4) ?> <abbr title="kilobyte">kB</abbr></td>
 		</tr>
 		<tr class="headers">
 			<th class="name"><?php echo __('Benchmark') ?></th>
-			<th class="min"><?php echo __('Min') ?></th>
-			<th class="max"><?php echo __('Max') ?></th>
-			<th class="average"><?php echo __('Average') ?></th>
-			<th class="total"><?php echo __('Total') ?></th>
+			<?php foreach ($group_cols as $key): ?>
+			<th class="<?php echo $key ?>"><?php echo __(ucfirst($key)) ?></th>
+			<?php endforeach ?>
 		</tr>
 		<?php foreach ($benchmarks as $name => $tokens): ?>
 		<tr class="mark time">
 			<?php $stats = Profiler::stats($tokens) ?>
 			<th class="name" rowspan="2" scope="rowgroup"><?php echo $name, ' (', count($tokens), ')' ?></th>
-			<?php foreach (array('min', 'max', 'average', 'total') as $key): ?>
+			<?php foreach ($group_cols as $key): ?>
 			<td class="<?php echo $key ?>">
 				<div>
 					<div class="value"><?php echo number_format($stats[$key]['time'], 6) ?> <abbr title="seconds">s</abbr></div>
-					<?php if ($key === 'total') { ?>
-						<div class="graph" style="left: <?php echo 100 - $stats[$key]['time'] / $groups[$group]['max']['time'] * 100 ?>%"></div>
-					<?php } ?>
+					<?php if ($key === 'total'): ?>
+						<div class="graph" style="left: <?php echo max(0, 100 - $stats[$key]['time'] / $group_stats[$group]['max']['time'] * 100) ?>%"></div>
+					<?php endif ?>
 				</div>
 			</td>
 			<?php endforeach ?>
 		</tr>
 		<tr class="mark memory">
-			<?php foreach (array('min', 'max', 'average', 'total') as $key): ?>
+			<?php foreach ($group_cols as $key): ?>
 			<td class="<?php echo $key ?>">
 				<div>
 					<div class="value"><?php echo number_format($stats[$key]['memory'] / 1024, 4) ?> <abbr title="kilobyte">kB</abbr></div>
-					<?php if ($key === 'total') { ?>
-						<div class="graph" style="left: <?php echo 100 - $stats[$key]['memory'] / $groups[$group]['max']['memory'] * 100 ?>%"></div>
-					<?php } ?>
+					<?php if ($key === 'total'): ?>
+						<div class="graph" style="left: <?php echo max(0, 100 - $stats[$key]['memory'] / $group_stats[$group]['max']['memory'] * 100) ?>%"></div>
+					<?php endif ?>
 				</div>
 			</td>
 			<?php endforeach ?>
@@ -87,12 +61,12 @@ foreach (Profiler::groups() as $group => $benchmarks)
 		<?php $stats = Profiler::application() ?>
 		<tr class="final mark time">
 			<th class="name" rowspan="2" scope="rowgroup"><?php echo __('Application Execution').' ('.$stats['count'].')' ?></th>
-			<?php foreach (array('min', 'max', 'average', 'current') as $key): ?>
+			<?php foreach ($application_cols as $key): ?>
 			<td class="<?php echo $key ?>"><?php echo number_format($stats[$key]['time'], 6) ?> <abbr title="seconds">s</abbr></td>
 			<?php endforeach ?>
 		</tr>
 		<tr class="final mark memory">
-			<?php foreach (array('min', 'max', 'average', 'current') as $key): ?>
+			<?php foreach ($application_cols as $key): ?>
 			<td class="<?php echo $key ?>"><?php echo number_format($stats[$key]['memory'] / 1024, 4) ?> <abbr title="kilobyte">kB</abbr></td>
 			<?php endforeach ?>
 		</tr>
