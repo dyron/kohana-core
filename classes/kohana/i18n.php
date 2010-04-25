@@ -1,14 +1,29 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
- * Wrapper for I18n messages
+ * Internationalization (i18n) class. Provides language loading and translation
+ * methods without dependancies on [gettext](http://php.net/gettext).
  *
- * @package    I18n
- * @author     David Pommer
+ * Typically this class would never be used directly, but used via the __()
+ * function, which loads the message and replaces parameters:
+ *
+ *     // Display a translated message
+ *     echo __('Hello, world');
+ *
+ *     // With parameter replacement
+ *     echo __('Hello, :user', array(':user' => $username));
+ *
+ * [!!] The __() function is declared in `SYSPATH/base.php`.
+ *
+ * @package    Kohana
+ * @category   Base
+ * @author     Kohana Team
+ * @copyright  (c) 2008-2009 Kohana Team
+ * @license    http://kohanaphp.com/license
  */
 class Kohana_I18n {
 
 	/**
-	 * @var string target language: en-us, es-es, zh-cn, etc
+	 * @var  string   target language: en-us, es-es, zh-cn, etc
 	 */
 	public static $lang = 'en-us';
 
@@ -21,6 +36,8 @@ class Kohana_I18n {
 	/**
 	 * Get the singleton instance of Kohana_I18n
 	 *
+	 *     // Get the current language
+	 *     $lang = I18n::lang();
 	 * @return  Kohana_I18n
 	 */
 	public static function instance($lang = NULL)
@@ -70,6 +87,7 @@ class Kohana_I18n {
 	 *
 	 * @param   object  Kohana_I18n_Reader instance
 	 * @return  $this
+
 	 */
 	public function detach(Kohana_I18n_Reader $reader)
 	{
@@ -101,10 +119,12 @@ class Kohana_I18n {
 
 	/**
 	 * Returns translation of a string. If no translation exists, the original
-	 * string will be returned.
+	 * string will be returned. No parameters are replaced.
 	 *
-	 * @param    string   text to translate
-	 * @return   string
+	 *     $hello = I18n::get('Hello friends, my name is :name');
+	 *
+	 * @param   string   text to translate
+	 * @return  string
 	 */
 	public static function get($string)
 	{
@@ -126,6 +146,9 @@ class Kohana_I18n {
 
 	/**
 	 * Returns the translation table for a given language.
+	 *
+	 *     // Get all defined Spanish messages
+	 *     $messages = I18n::load('es-es');
 	 *
 	 * @param   string  i18n lang
 	 * @return  object  Kohana_I18n_Reader
