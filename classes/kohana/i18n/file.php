@@ -1,9 +1,13 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
- * File-based i18n reader
+ * File-based i18n reader. Multiple i18n directories can be used by 
+ * attaching multiple instances of this class to [Kohana_I18n].
  *
- * @package   I18n
- * @author    David Pommer
+ * @package    Kohana
+ * @category   I18n
+ * @author     Kohana Team
+ * @copyright  (c) 2010 Kohana Team
+ * @license    http://kohanaphp.com/license
  */
 class Kohana_I18n_File extends Kohana_I18n_Reader {
 
@@ -45,7 +49,7 @@ class Kohana_I18n_File extends Kohana_I18n_Reader {
 				foreach($files as $file)
 				{
 					// Merge the language strings into the sub table
-					$table = array_merge($table, Kohana::load($file));
+					$table = Arr::merge($table, Kohana::load($file));
 				}
 
 				// Append the sub table, preventing less specific language
@@ -60,4 +64,5 @@ class Kohana_I18n_File extends Kohana_I18n_Reader {
 
 		return parent::load($lang, $messages);
 	}
+
 } // End Kohana_I18n_File

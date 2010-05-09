@@ -6,16 +6,16 @@
  * Typically this class would never be used directly, but used via the __()
  * function, which loads the message and replaces parameters:
  *
- *     // Display a translated message
- *     echo __('Hello, world');
+ * // Display a translated message
+ * echo __('Hello, world');
  *
- *     // With parameter replacement
- *     echo __('Hello, :user', array(':user' => $username));
+ * // With parameter replacement
+ * echo __('Hello, :user', array(':user' => $username));
  *
  * [!!] The __() function is declared in `SYSPATH/base.php`.
  *
  * @package    Kohana
- * @category   Base
+ * @category   I18n
  * @author     Kohana Team
  * @copyright  (c) 2008-2009 Kohana Team
  * @license    http://kohanaphp.com/license
@@ -23,7 +23,7 @@
 class Kohana_I18n {
 
 	/**
-	 * @var  string   target language: en-us, es-es, zh-cn, etc
+	 * @var string target language: en-us, es-es, zh-cn, etc
 	 */
 	public static $lang = 'en-us';
 
@@ -36,8 +36,6 @@ class Kohana_I18n {
 	/**
 	 * Get the singleton instance of Kohana_I18n
 	 *
-	 *     // Get the current language
-	 *     $lang = I18n::lang();
 	 * @return  Kohana_I18n
 	 */
 	public static function instance($lang = NULL)
@@ -87,7 +85,6 @@ class Kohana_I18n {
 	 *
 	 * @param   object  Kohana_I18n_Reader instance
 	 * @return  $this
-
 	 */
 	public function detach(Kohana_I18n_Reader $reader)
 	{
@@ -119,53 +116,50 @@ class Kohana_I18n {
 
 	/**
 	 * Returns translation of a string. If no translation exists, the original
-	 * string will be returned. No parameters are replaced.
+	 * string will be returned.
 	 *
-	 *     $hello = I18n::get('Hello friends, my name is :name');
-	 *
-	 * @param   string   text to translate
-	 * @return  string
+	 * @param    string   text to translate
+	 * @return   string
 	 */
 	public static function get($string)
 	{
-		if (empty(I18n::$_readers))
+		if ( ! isset(self::$_cache[self::$lang]))
 		{
-			// No reader found, use the string
-			return $string;
-		}
-
-		if ( ! isset(I18n::$_cache[I18n::$lang]))
-		{
-			// Load the translation table
-			I18n::$_cache[I18n::$lang] = Kohana::$i18n->load(I18n::$lang, $string);
+			self::$_cache[self::$lang] = self::$_instance->load(self::$lang);
 		}
 
 		// Return the translated string if it exists
-		return isset(I18n::$_cache[I18n::$lang][$string]) ? I18n::$_cache[I18n::$lang][$string] : $string;
+		return (self::$_cache[self::$lang] !== FALSE) ? self::$_cache[self::$lang]->get($string) : $string;
+
 	}
 
 	/**
 	 * Returns the translation table for a given language.
 	 *
-	 *     // Get all defined Spanish messages
-	 *     $messages = I18n::load('es-es');
-	 *
 	 * @param   string  i18n lang
 	 * @return  object  Kohana_I18n_Reader
 	 */
-	public function load($lang, $string)
+	public function load($lang)
 	{
 		foreach ($this->_readers as $reader)
 		{
 			if ($i18n = $reader->load($lang))
 			{
-				// Found a reader for this lang
+				// Found a reader for this i18n lang
 				return $i18n;
 			}
 		}
 
+		// Reset the iterator
+		reset($this->_readers);
+
+		if ( ! is_object($i18n = self::$_cache[$lang] = current($this->_readers)))
+		{
+			throw new Kohana_Exception('No i18n readers attached');
+		}
+
 		// Load the reader as an empty array
-		return array();
+		return $i18n->load($lang, array());
 	}
 
 

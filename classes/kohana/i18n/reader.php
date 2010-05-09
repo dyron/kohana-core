@@ -1,9 +1,12 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
- * Abstract i18n reader
+ * Abstract i18n reader. All i18n readers must extend this class.
  *
- * @package    I18n
- * @author     David Pommer
+ * @package    Kohana
+ * @category   I18n
+ * @author     Kohana Team
+ * @copyright  (c) 2008-2009 Kohana Team
+ * @license    http://kohanaphp.com/license
  */
 abstract class Kohana_I18n_Reader extends ArrayObject {
 
@@ -56,7 +59,7 @@ abstract class Kohana_I18n_Reader extends ArrayObject {
 	 */
 	public function as_array()
 	{
-		return $this-> getArrayCopy();
+		return $this->getArrayCopy();
 	}
 
 	/**
@@ -66,8 +69,9 @@ abstract class Kohana_I18n_Reader extends ArrayObject {
 	 * @param   mixed    default value
 	 * @return  mixed
 	 */
-	public function get($key, $default = NULL)
+	public function get($key)
 	{
-		return $this->offsetExists($key) ? $this->offsetGet($key) : $default;
+		return $this->offsetExists($key) ? $this->offsetGet($key) : $key;
 	}
+
 } // End Kohana_I18n_Reader
