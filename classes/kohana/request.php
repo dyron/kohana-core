@@ -25,6 +25,7 @@ class Kohana_Request {
 		204 => 'No Content',
 		205 => 'Reset Content',
 		206 => 'Partial Content',
+		207 => 'Multi-Status',
 
 		// Redirection 3xx
 		300 => 'Multiple Choices',
@@ -55,6 +56,9 @@ class Kohana_Request {
 		415 => 'Unsupported Media Type',
 		416 => 'Requested Range Not Satisfiable',
 		417 => 'Expectation Failed',
+		422 => 'Unprocessable Entity',
+		423 => 'Locked',
+		424 => 'Failed Dependency',
 
 		// Server Error 5xx
 		500 => 'Internal Server Error',
@@ -63,6 +67,7 @@ class Kohana_Request {
 		503 => 'Service Unavailable',
 		504 => 'Gateway Timeout',
 		505 => 'HTTP Version Not Supported',
+		507 => 'Insufficient Storage',
 		509 => 'Bandwidth Limit Exceeded'
 	);
 
@@ -97,6 +102,16 @@ class Kohana_Request {
 	public static $is_ajax = FALSE;
 
 	/**
+	 * @var  object  main request instance
+	 */
+	public static $instance;
+
+	/**
+	 * @var  object  currently executing request instance
+	 */
+	public static $current;
+
+	/**
 	 * Main request singleton instance. If no URI is provided, the URI will
 	 * be automatically detected using PATH_INFO, REQUEST_URI, or PHP_SELF.
 	 *
@@ -107,9 +122,7 @@ class Kohana_Request {
 	 */
 	public static function instance( & $uri = TRUE)
 	{
-		static $instance;
-
-		if ($instance === NULL)
+		if ( ! Request::$instance)
 		{
 			if (Kohana::$is_cli)
 			{
@@ -215,6 +228,9 @@ class Kohana_Request {
 						{
 							// REQUEST_URI includes the query string, remove it
 							$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+							// Decode the request URI
+							$uri = rawurldecode($uri);
 						}
 						elseif (isset($_SERVER['PHP_SELF']))
 						{
@@ -226,8 +242,8 @@ class Kohana_Request {
 						}
 						else
 						{
-							// If you ever see this error, please report an issue at and include a dump of $_SERVER
-							// http://dev.kohanaphp.com/projects/kohana3/issues
+							// If you ever see this error, please report an issue at http://dev.kohanaphp.com/projects/kohana3/issues
+							// along with any relevant information about your web server setup. Thanks!
 							throw new Kohana_Exception('Unable to detect the URI using PATH_INFO, REQUEST_URI, or PHP_SELF');
 						}
 
@@ -256,13 +272,28 @@ class Kohana_Request {
 			$uri = preg_replace('#\.[\s./]*/#', '', $uri);
 
 			// Create the instance singleton
-			$instance = new Request($uri);
+			Request::$instance = Request::$current = new Request($uri);
 
-			// Add the Content-Type header
-			$instance->headers['Content-Type'] = 'text/html; charset='.Kohana::$charset;
+			// Add the default Content-Type header
+			Request::$instance->headers['Content-Type'] = 'text/html; charset='.Kohana::$charset;
 		}
 
-		return $instance;
+		return Request::$instance;
+	}
+
+	/**
+	 * Return the currently executing request. This is changed to the current
+	 * request when [Request::execute] is called and restored when the request
+	 * is completed.
+	 *
+	 *     $request = Request::current();
+	 *
+	 * @return  Request
+	 * @since   3.0.5
+	 */
+	public static function current()
+	{
+		return Request::$current;
 	}
 
 	/**
@@ -764,6 +795,7 @@ class Kohana_Request {
 	 * ----------|-----------|------------------------------------|--------------
 	 * `boolean` | inline    | Display inline instead of download | `FALSE`
 	 * `string`  | mime_type | Manual mime type                   | Automatic
+	 * `boolean` | delete    | Delete the file after sending      | `FALSE`
 	 *
 	 * Download a file that already exists:
 	 *
@@ -771,7 +803,8 @@ class Kohana_Request {
 	 *
 	 * Download generated content as a file:
 	 *
-	 *     $request->send_file($content, $filename);
+	 *     $request->response = $content;
+	 *     $request->send_file(TRUE, $filename);
 	 *
 	 * [!!] No further processing can be done after this method is called!
 	 *
@@ -798,6 +831,9 @@ class Kohana_Request {
 			{
 				throw new Kohana_Exception('Download name must be provided for streaming files');
 			}
+
+			// Temporary files will automatically be deleted
+			$options['delete'] = FALSE;
 
 			if ( ! isset($mime))
 			{
@@ -887,6 +923,31 @@ class Kohana_Request {
 		// Close the file
 		fclose($file);
 
+		if ( ! empty($options['delete']))
+		{
+			try
+			{
+				// Attempt to remove the file
+				unlink($filename);
+			}
+			catch (Exception $e)
+			{
+				// Create a text version of the exception
+				$error = Kohana::exception_text($e);
+
+				if (is_object(Kohana::$log))
+				{
+					// Add this exception to the log
+					Kohana::$log->add(Kohana::ERROR, $error);
+
+					// Make sure the logs are written
+					Kohana::$log->write();
+				}
+
+				// Do NOT display the exception, it will corrupt the output!
+			}
+		}
+
 		// Stop execution
 		exit;
 	}
@@ -916,17 +977,32 @@ class Kohana_Request {
 		// Create the class prefix
 		$prefix = 'controller_';
 
-		if ( ! empty($this->directory))
+		if ($this->directory)
 		{
 			// Add the directory name to the class prefix
 			$prefix .= str_replace(array('\\', '/'), '_', trim($this->directory, '/')).'_';
 		}
 
-		if (Kohana::$profiling === TRUE)
+		if (Kohana::$profiling)
 		{
+			// Set the benchmark name
+			$benchmark = '"'.$this->uri.'"';
+
+			if ($this !== Request::$instance AND Request::$current)
+			{
+				// Add the parent request uri
+				$benchmark .= ' « "'.Request::$current->uri.'"';
+			}
+
 			// Start benchmarking
-			$benchmark = Profiler::start('Requests', $this->uri);
+			$benchmark = Profiler::start('Requests', $benchmark);
 		}
+
+		// Store the currently active request
+		$previous = Request::$current;
+
+		// Change the current request to this request
+		Request::$current = $this;
 
 		try
 		{
@@ -956,6 +1032,9 @@ class Kohana_Request {
 		}
 		catch (Exception $e)
 		{
+			// Restore the previous request
+			Request::$current = $previous;
+
 			if (isset($benchmark))
 			{
 				// Delete the benchmark, it is invalid
@@ -976,6 +1055,9 @@ class Kohana_Request {
 			// Re-throw the exception
 			throw $e;
 		}
+
+		// Restore the previous request
+		Request::$current = $previous;
 
 		if (isset($benchmark))
 		{

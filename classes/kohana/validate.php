@@ -144,7 +144,18 @@ class Kohana_Validate extends ArrayObject {
 	 */
 	public static function url($url)
 	{
-		return (bool) filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED);
+		// Regex taken from http://fightingforalostcause.net/misc/2006/compare-email-regex.php
+		// Added the scheme and path parts to test URLs
+
+		$scheme = '[a-z0-9+-.]+';
+		$host   = '(([a-z0-9]{1}[a-z0-9-]+[a-z0-9]{1}|[a-z])\.?)+([a-z]{2,6})?';
+		$ipaddr = '(\d{1,3}.){3}\d{1,3}';
+		$port   = '(\:\d{1,5})?';
+		$path   = '(/.+)?';
+
+		$regex  = "!^{$scheme}://({$host}|{$ipaddr}){$port}{$path}$!i";
+
+		return (bool) preg_match($regex, $url);
 	}
 
 	/**
@@ -352,7 +363,7 @@ class Kohana_Validate extends ArrayObject {
 		}
 		else
 		{
-			return is_int($str) OR ctype_digit($str);
+			return (is_int($str) AND $str >= 0) OR ctype_digit($str);
 		}
 	}
 
@@ -978,12 +989,27 @@ class Kohana_Validate extends ArrayObject {
 			}
 
 			// Start the translation values list
-			$values = array(':field' => $label);
+			$values = array(
+				':field' => $label,
+				':value' => $this[$field],
+			);
+
+			if (is_array($values[':value']))
+			{
+				// All values must be strings
+				$values[':value'] = implode(', ', Arr::flatten($values[':value']));
+			}
 
 			if ($params)
 			{
 				foreach ($params as $key => $value)
 				{
+					if (is_array($value))
+					{
+						// All values must be strings
+						$value = implode(', ', Arr::flatten($value));
+					}
+
 					// Check if a label for this parameter exists
 					if (isset($this->_labels[$value]))
 					{
@@ -997,7 +1023,7 @@ class Kohana_Validate extends ArrayObject {
 					}
 
 					// Add each parameter as a numbered value, starting from 1
-					$values[':param'.($key + 1)] = is_array($value) ? implode(', ', $value) : $value;
+					$values[':param'.($key + 1)] = $value;
 				}
 			}
 
@@ -1009,6 +1035,10 @@ class Kohana_Validate extends ArrayObject {
 			{
 				// Found a default message for this field
 			}
+			elseif ($message = Kohana::message($file, $error))
+			{
+				// Found a default message for this error
+			}
 			elseif ($message = Kohana::message('validate', $error))
 			{
 				// Found a default message for this error
@@ -1019,7 +1049,7 @@ class Kohana_Validate extends ArrayObject {
 				$message = "{$file}.{$field}.{$error}";
 			}
 
-			if ($translate == TRUE)
+			if ($translate)
 			{
 				if (is_string($translate))
 				{

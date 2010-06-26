@@ -10,19 +10,19 @@
  * a pattern for the key:
  *
  *     // This route will only match when <id> is a digit
- *     Route::set('user/edit/<id>', array('id' => '\d+'));
+ *     Route::set('user', 'user/<action>/<id>', array('id' => '\d+'));
  *
  *     // This route will match when <path> is anything
- *     Route::set('<path>', array('path' => '.*'));
+ *     Route::set('file', '<path>', array('path' => '.*'));
  *
  * It is also possible to create optional segments by using parentheses in
  * the URI definition:
  *
  *     // This is the standard default route, and no keys are required
- *     Route::set('(<controller>(/<action>(/<id>)))');
+ *     Route::set('default', '(<controller>(/<action>(/<id>)))');
  *
  *     // This route only requires the <file> key
- *     Route::set('(<path>/)<file>(<format>)', array('path' => '.*', 'format' => '\.\w+'));
+ *     Route::set('file', '(<path>/)<file>(.<format>)', array('path' => '.*', 'format' => '\w+'));
  *
  * Routes also provide a way to generate URIs (called "reverse routing"), which
  * makes them an extremely powerful and flexible way to generate internal links.
@@ -154,6 +154,24 @@ class Kohana_Route {
 				return FALSE;
 			}
 		}
+	}
+
+	/**
+	 * Create a URL from a route name. This is a shortcut for:
+	 *
+	 *     echo URL::site(Route::get($name)->uri($params), $protocol);
+	 *
+	 * @param   string   route name
+	 * @param   array    URI parameters
+	 * @param   mixed   protocol string or boolean, adds protocol and domain
+	 * @return  string
+	 * @since   3.0.7
+	 * @uses    URL::site
+	 */
+	public static function url($name, array $params = NULL, $protocol = NULL)
+	{
+		// Create a URI with the route and convert it to a URL
+		return URL::site(Route::get($name)->uri($params), $protocol);
 	}
 
 	// Route URI string

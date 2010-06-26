@@ -6,11 +6,11 @@
  * Typically this class would never be used directly, but used via the __()
  * function, which loads the message and replaces parameters:
  *
- * // Display a translated message
- * echo __('Hello, world');
+ *     // Display a translated message
+ *     echo __('Hello, world');
  *
- * // With parameter replacement
- * echo __('Hello, :user', array(':user' => $username));
+ *     // With parameter replacement
+ *     echo __('Hello, :user', array(':user' => $username));
  *
  * [!!] The __() function is declared in `SYSPATH/base.php`.
  *
@@ -23,7 +23,7 @@
 class Kohana_I18n {
 
 	/**
-	 * @var string target language: en-us, es-es, zh-cn, etc
+	 * @var  string   target language: en-us, es-es, zh-cn, etc
 	 */
 	public static $lang = 'en-us';
 
@@ -161,16 +161,4 @@ class Kohana_I18n {
 		// Load the reader as an empty array
 		return $i18n->load($lang, array());
 	}
-
-
-	final private function __construct()
-	{
-		// Enforce singleton behavior
-	}
-
-	final private function __clone()
-	{
-		// Enforce singleton behavior
-	}
-
 } // End Kohana_I18n

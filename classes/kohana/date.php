@@ -19,18 +19,20 @@ class Kohana_Date {
 	const MINUTE = 60;
 
 	/**
-	 * Returns the offset (in seconds) between two time zones. When you display
-	 * dates to users in different time zones, you will probably need this.
+	 * Returns the offset (in seconds) between two time zones. Use this to
+	 * display dates to users in different time zones.
 	 *
 	 *     $seconds = Date::offset('America/Chicago', 'GMT');
 	 *
-	 * @see     http://php.net/timezones
-	 * @see     http://php.net/datetime
+	 * [!!] A list of time zones that PHP supports can be found at
+	 * <http://php.net/timezones>.
+	 *
 	 * @param   string   timezone that to find the offset of
 	 * @param   string   timezone used as the baseline
+	 * @param   mixed    UNIX timestamp or date string
 	 * @return  integer
 	 */
-	public static function offset($remote, $local = NULL)
+	public static function offset($remote, $local = NULL, $now = NULL)
 	{
 		if ($local === NULL)
 		{
@@ -38,25 +40,22 @@ class Kohana_Date {
 			$local = date_default_timezone_get();
 		}
 
-		// Set the cache key, matches the method name
-		$cache_key = "Date::offset({$remote},{$local})";
-
-		if (($offset = Kohana::cache($cache_key)) === NULL)
+		if (is_int($now))
 		{
-			// Create timezone objects
-			$zone_remote = new DateTimeZone($remote);
-			$zone_local  = new DateTimeZone($local);
-
-			// Create date objects from timezones
-			$time_remote = new DateTime('now', $zone_remote);
-			$time_local  = new DateTime('now', $zone_local);
-
-			// Find the offset
-			$offset = $zone_remote->getOffset($time_remote) - $zone_local->getOffset($time_local);
-
-			// Cache the offset
-			Kohana::cache($cache_key, $offset);
+			// Convert the timestamp into a string
+			$now = date(DateTime::RFC2822, $now);
 		}
+
+		// Create timezone objects
+		$zone_remote = new DateTimeZone($remote);
+		$zone_local  = new DateTimeZone($local);
+
+		// Create date objects from timezones
+		$time_remote = new DateTime($now, $zone_remote);
+		$time_local  = new DateTime($now, $zone_local);
+
+		// Find the offset
+		$offset = $zone_remote->getOffset($time_remote) - $zone_local->getOffset($time_local);
 
 		return $offset;
 	}
@@ -287,12 +286,17 @@ class Kohana_Date {
 	 */
 	public static function span($remote, $local = NULL, $output = 'years,months,weeks,days,hours,minutes,seconds')
 	{
-		// Array with the output formats
-		$output = preg_split('/[^a-z]+/', strtolower((string) $output));
+		// Normalize output
+		$output = trim(strtolower((string) $output));
 
-		// Invalid output
-		if (empty($output))
+		if ( ! $output)
+		{
+			// Invalid output
 			return FALSE;
+		}
+
+		// Array with the output formats
+		$output = preg_split('/[^a-z]+/', $output);
 
 		// Convert the list of outputs to an associative array
 		$output = array_combine($output, array_fill(0, count($output), 0));
@@ -513,11 +517,6 @@ class Kohana_Date {
 		$year = ($timestamp >> 25) & 0x7f;
 
 		return mktime($hrs, $min, $sec, $mon, $day, $year + 1980);
-	}
-
-	final private function __construct()
-	{
-		// This is a static class
 	}
 
 } // End date
