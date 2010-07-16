@@ -118,19 +118,25 @@ class Kohana_I18n {
 	 * Returns translation of a string. If no translation exists, the original
 	 * string will be returned.
 	 *
-	 * @param    string   text to translate
-	 * @return   string
+	 *     $hello = I18n::get('Hello friends, my name is :name');
+	 *
+	 * @param   string   text to translate
+	 * @param   string   target language
+	 * @return  string
 	 */
-	public static function get($string)
+	public static function get($string, $lang = NULL)
 	{
-		if ( ! isset(self::$_cache[self::$lang]))
+		if ( ! $lang)
 		{
-			self::$_cache[self::$lang] = self::$_instance->load(self::$lang);
+			// Use the global target language
+			$lang = I18n::$lang;
 		}
 
-		// Return the translated string if it exists
-		return (self::$_cache[self::$lang] !== FALSE) ? self::$_cache[self::$lang]->get($string) : $string;
+		// Load the translation table for this language
+		$table = I18n::load($lang);
 
+		// Return the translated string if it exists
+		return isset($table[$string]) ? $table[$string] : $string;
 	}
 
 	/**
