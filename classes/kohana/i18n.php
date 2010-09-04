@@ -133,7 +133,7 @@ class Kohana_I18n {
 		}
 
 		// Load the translation table for this language
-		$table = I18n::load($lang);
+		$table = self::$_instance->load($lang);
 
 		// Return the translated string if it exists
 		return isset($table[$string]) ? $table[$string] : $string;
@@ -159,7 +159,7 @@ class Kohana_I18n {
 		// Reset the iterator
 		reset($this->_readers);
 
-		if ( ! is_object($i18n = self::$_cache[$lang] = current($this->_readers)))
+		if ( ! is_object($i18n = current($this->_readers)))
 		{
 			throw new Kohana_Exception('No i18n readers attached');
 		}
