@@ -5,8 +5,8 @@
  * @package    Kohana
  * @category   Security
  * @author     Kohana Team
- * @copyright  (c) 2008-2009 Kohana Team
- * @license    http://kohanaphp.com/license
+ * @copyright  (c) 2008-2010 Kohana Team
+ * @license    http://kohanaframework.org/license
  */
 class Kohana_Validate extends ArrayObject {
 
@@ -34,7 +34,8 @@ class Kohana_Validate extends ArrayObject {
 			$value = $value->getArrayCopy();
 		}
 
-		return ($value === '0' OR ! empty($value));
+		// Value cannot be NULL, FALSE, '', or an empty array
+		return ! in_array($value, array(NULL, FALSE, '', array()), TRUE);
 	}
 
 	/**
@@ -83,6 +84,18 @@ class Kohana_Validate extends ArrayObject {
 	public static function exact_length($value, $length)
 	{
 		return UTF8::strlen($value) === $length;
+	}
+
+	/**
+	 * CHecks that a field is exactly the value required.
+	 *
+	 * @param   string   value
+	 * @param   string   required value
+	 * @return  boolean
+	 */
+	public static function equals($value, $required)
+	{
+		return ($value === $required);
 	}
 
 	/**
@@ -217,13 +230,12 @@ class Kohana_Validate extends ArrayObject {
 	}
 
 	/**
-	 * Validates a credit card number using the Luhn (mod10) formula.
-	 *
-	 * @link http://en.wikipedia.org/wiki/Luhn_algorithm
+	 * Validates a credit card number, with a Luhn check if possible.
 	 *
 	 * @param   integer       credit card number
 	 * @param   string|array  card type, or an array of card types
 	 * @return  boolean
+	 * @uses    Validate::luhn
 	 */
 	public static function credit_card($number, $type = NULL)
 	{
@@ -271,6 +283,31 @@ class Kohana_Validate extends ArrayObject {
 		if ($cards[$type]['luhn'] == FALSE)
 			return TRUE;
 
+		return Validate::luhn($number);
+	}
+
+	/**
+	 * Validate a number against the [Luhn](http://en.wikipedia.org/wiki/Luhn_algorithm)
+	 * (mod10) formula.
+	 *
+	 * @param   string   number to check
+	 * @return  boolean
+	 */
+	public static function luhn($number)
+	{
+		// Force the value to be a string as this method uses string functions.
+		// Converting to an integer may pass PHP_INT_MAX and result in an error!
+		$number = (string) $number;
+
+		if ( ! ctype_digit($number))
+		{
+			// Luhn can only be used on numbers!
+			return FALSE;
+		}
+
+		// Check number length
+		$length = strlen($number);
+
 		// Checksum of the card number
 		$checksum = 0;
 
@@ -286,7 +323,7 @@ class Kohana_Validate extends ArrayObject {
 			$double = substr($number, $i, 1) * 2;
 
 			// Subtract 9 from the double where value is greater than 10
-			$checksum += ($double >= 10) ? $double - 9 : $double;
+			$checksum += ($double >= 10) ? ($double - 9) : $double;
 		}
 
 		// If the checksum is a multiple of 10, the number is valid
@@ -418,7 +455,8 @@ class Kohana_Validate extends ArrayObject {
 		// Get the decimal point for the current locale
 		list($decimal) = array_values(localeconv());
 
-		return (bool) preg_match('/^-?[0-9'.$decimal.']++$/D', (string) $str);
+		// A lookahead is used to make sure the string contains at least one digit (before or after the decimal point)
+		return (bool) preg_match('/^-?+(?=.*[0-9])[0-9]*+'.preg_quote($decimal).'?+[0-9]*+$/D', (string) $str);
 	}
 
 	/**
@@ -448,7 +486,7 @@ class Kohana_Validate extends ArrayObject {
 		if ($digits > 0)
 		{
 			// Specific number of digits
-			$digits = '{'.(int) $digits.'}';
+			$digits = '{'. (int) $digits.'}';
 		}
 		else
 		{
@@ -459,7 +497,7 @@ class Kohana_Validate extends ArrayObject {
 		// Get the decimal point for the current locale
 		list($decimal) = array_values(localeconv());
 
-		return (bool) preg_match('/^[0-9]'.$digits.preg_quote($decimal).'[0-9]{'.(int) $places.'}$/D', $str);
+		return (bool) preg_match('/^[0-9]'.$digits.preg_quote($decimal).'[0-9]{'. (int) $places.'}$/D', $str);
 	}
 
 	/**
@@ -624,7 +662,13 @@ class Kohana_Validate extends ArrayObject {
 		if ($field !== TRUE AND ! isset($this->_labels[$field]))
 		{
 			// Set the field label to the field name
-			$this->_labels[$field] = preg_replace('/[^\pL]+/u', ' ', $field);
+			$this->_labels[$field] = trim(preg_replace('/[^\pL]+/u', ' ', $field));
+		}
+
+		if ('matches' === $rule AND ! isset($this->_labels[$params[0]]))
+		{
+			$match_field = $params[0];
+			$this->_labels[$match_field] = trim(preg_replace('/[^\pL]+/u', ' ', $match_field));
 		}
 
 		// Store the rule and params for this rule
@@ -793,10 +837,10 @@ class Kohana_Validate extends ArrayObject {
 		// Overload the current array with the new one
 		$this->exchangeArray($data);
 
-		if ($submitted === FALSE)
+		if ($submitted === FALSE AND ! $allow_empty)
 		{
 			// Because no data was submitted, validation will not be forced
-			return (boolean) $allow_empty;
+			return FALSE;
 		}
 
 		// Remove the filters, rules, and callbacks that apply to every field
@@ -1023,8 +1067,16 @@ class Kohana_Validate extends ArrayObject {
 
 			if ($translate)
 			{
-				// Translate the label
-				$label = __($label);
+				if (is_string($translate))
+				{
+					// Translate the label using the specified language
+					$label = __($label, NULL, $translate);
+				}
+				else
+				{
+					// Translate the label
+					$label = __($label);
+				}
 			}
 
 			// Start the translation values list
@@ -1052,12 +1104,21 @@ class Kohana_Validate extends ArrayObject {
 					// Check if a label for this parameter exists
 					if (isset($this->_labels[$value]))
 					{
+						// Use the label as the value, eg: related field name for "matches"
 						$value = $this->_labels[$value];
 
 						if ($translate)
 						{
-							// Translate the label
-							$value = __($value);
+							if (is_string($translate))
+							{
+								// Translate the value using the specified language
+								$value = __($value, NULL, $translate);
+							}
+							else
+							{
+								// Translate the value
+								$value = __($value);
+							}
 						}
 					}
 

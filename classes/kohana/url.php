@@ -5,8 +5,8 @@
  * @package    Kohana
  * @category   Helpers
  * @author     Kohana Team
- * @copyright  (c) 2007-2009 Kohana Team
- * @license    http://kohanaphp.com/license
+ * @copyright  (c) 2007-2010 Kohana Team
+ * @license    http://kohanaframework.org/license
  */
 class Kohana_URL {
 
@@ -33,14 +33,19 @@ class Kohana_URL {
 	 */
 	public static function base($index = FALSE, $protocol = FALSE)
 	{
+		// Start with the configured base URL
+		$base_url = Kohana::$base_url;
+
 		if ($protocol === TRUE)
 		{
 			// Use the current protocol
 			$protocol = Request::$protocol;
 		}
-
-		// Start with the configured base URL
-		$base_url = Kohana::$base_url;
+		elseif ($protocol === FALSE AND $scheme = parse_url($base_url, PHP_URL_SCHEME))
+		{
+			// Use the configured default protocol
+			$protocol = $scheme;
+		}
 
 		if ($index === TRUE AND ! empty(Kohana::$index_file))
 		{
@@ -50,14 +55,25 @@ class Kohana_URL {
 
 		if (is_string($protocol))
 		{
-			if (parse_url($base_url, PHP_URL_HOST))
+			if ($port = parse_url($base_url, PHP_URL_PORT))
+			{
+				// Found a port, make it usable for the URL
+				$port = ':'.$port;
+			}
+
+			if ($domain = parse_url($base_url, PHP_URL_HOST))
 			{
 				// Remove everything but the path from the URL
 				$base_url = parse_url($base_url, PHP_URL_PATH);
 			}
+			else
+			{
+				// Attempt to use HTTP_HOST and fallback to SERVER_NAME
+				$domain = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME'];
+			}
 
 			// Add the protocol and domain to the base URL
-			$base_url = $protocol.'://'.$_SERVER['HTTP_HOST'].$base_url;
+			$base_url = $protocol.'://'.$domain.$port.$base_url;
 		}
 
 		return $base_url;
@@ -75,23 +91,17 @@ class Kohana_URL {
 	 */
 	public static function site($uri = '', $protocol = FALSE)
 	{
-		// Get the path from the URI
-		$path = trim(parse_url($uri, PHP_URL_PATH), '/');
+		// Chop off possible scheme, host, port, user and pass parts
+		$path = preg_replace('~^[-a-z0-9+.]++://[^/]++/?~', '', trim($uri, '/'));
 
-		if ($query = parse_url($uri, PHP_URL_QUERY))
+		if ( ! UTF8::is_ascii($path))
 		{
-			// ?query=string
-			$query = '?'.$query;
-		}
-
-		if ($fragment = parse_url($uri, PHP_URL_FRAGMENT))
-		{
-			// #fragment
-			$fragment = '#'.$fragment;
+			// Encode all non-ASCII characters, as per RFC 1738
+			$path = preg_replace('~([^/]+)~e', 'rawurlencode("$1")', $path);
 		}
 
 		// Concat the URL
-		return URL::base(TRUE, $protocol).$path.$query.$fragment;
+		return URL::base(TRUE, $protocol).$path;
 	}
 
 	/**
@@ -106,20 +116,24 @@ class Kohana_URL {
 	 *
 	 * [!!] Parameters with a NULL value are left out.
 	 *
-	 * @param   array   array of GET parameters
+	 * @param   array    array of GET parameters
+	 * @param   boolean  include current request GET parameters
 	 * @return  string
 	 */
-	public static function query(array $params = NULL)
+	public static function query(array $params = NULL, $use_get = TRUE)
 	{
-		if ($params === NULL)
+		if ($use_get)
 		{
-			// Use only the current parameters
-			$params = $_GET;
-		}
-		else
-		{
-			// Merge the current and new parameters
-			$params = array_merge($_GET, $params);
+			if ($params === NULL)
+			{
+				// Use only the current parameters
+				$params = $_GET;
+			}
+			else
+			{
+				// Merge the current and new parameters
+				$params = array_merge($_GET, $params);
+			}
 		}
 
 		if (empty($params))
@@ -128,10 +142,11 @@ class Kohana_URL {
 			return '';
 		}
 
+		// Note: http_build_query returns an empty string for a params array with only NULL values
 		$query = http_build_query($params, '', '&');
 
 		// Don't prepend '?' to an empty string
-		return ($query === '') ? '' : '?'.$query;
+		return ($query === '') ? '' : ('?'.$query);
 	}
 
 	/**
