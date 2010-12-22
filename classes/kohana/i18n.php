@@ -37,7 +37,9 @@ class Kohana_I18n {
 	 */
 	protected static $_cache = array();
 
-	// Singleton static instance
+	/**
+	 * @var  Kohana_I18n  Singleton static instance
+	 */
 	protected static $_instance;
 
 	/**
@@ -61,8 +63,10 @@ class Kohana_I18n {
 		return self::$_instance;
 	}
 
-	// I18n readers
-	protected $_readers = array();
+	/**
+	 * @var  array  I18n readers
+	 */
+	protected static $_readers = array();
 
 	/**
 	 * Attach a i18n reader.
@@ -140,7 +144,7 @@ class Kohana_I18n {
 		}
 
 		// Load the translation table for this language
-		$table = self::$_instance->load($lang);
+		$table = I18n::load($lang);
 
 		// Return the translated string if it exists
 		return isset($table[$string]) ? $table[$string] : $string;
@@ -152,9 +156,9 @@ class Kohana_I18n {
 	 * @param   string  i18n lang
 	 * @return  object  Kohana_I18n_Reader
 	 */
-	public function load($lang)
+	public static function load($lang)
 	{
-		foreach ($this->_readers as $reader)
+		foreach (self::$_readers as $reader)
 		{
 			if ($i18n = $reader->load($lang))
 			{
@@ -164,9 +168,9 @@ class Kohana_I18n {
 		}
 
 		// Reset the iterator
-		reset($this->_readers);
+		reset(self::$_readers);
 
-		if ( ! is_object($i18n = current($this->_readers)))
+		if ( ! is_object($i18n = current(self::$_readers)))
 		{
 			throw new Kohana_Exception('No i18n readers attached');
 		}
