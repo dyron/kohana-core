@@ -149,6 +149,11 @@ class Kohana_Core {
 	public static $config;
 
 	/**
+	 * @var  Kohana_I18n  i18n object
+	 */
+	public static $i18n;
+
+	/**
 	 * @var  boolean  Has [Kohana::init] been called?
 	 */
 	protected static $_init = FALSE;
@@ -365,6 +370,9 @@ class Kohana_Core {
 
 		// Load the config
 		Kohana::$config = Kohana_Config::instance();
+
+		// Load the i18n
+		Kohana::$i18n = I18n::instance();
 	}
 
 	/**

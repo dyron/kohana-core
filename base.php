@@ -36,14 +36,21 @@ function __($string, array $values = NULL, $source = NULL)
 	if ( ! $source)
 	{
 		// Use the default source language
-		$source = I18n::$source;
+		$source = Kohana::$i18n->source;
 	}
 
-	if ($source !== I18n::$lang)
+	if ($source !== Kohana::$i18n->lang)
 	{
 		// The message and target languages are different
 		// Get the translation for this message
-		$string = I18n::get($string);
+		//try
+		//{
+			$string = Kohana::$i18n->get($string);
+		/*}
+		catch(Exception $e)
+		{
+			// Can't find a translation
+		}*/
 	}
 
 	return empty($values) ? $string : strtr($string, $values);

@@ -25,17 +25,22 @@ class Kohana_I18n {
 	/**
 	 * @var  string   target language: en-us, es-es, zh-cn, etc
 	 */
-	public static $lang = 'en-us';
+	public $lang = 'en-us';
 
 	/**
 	 * @var  string  source language: en-us, es-es, zh-cn, etc
 	 */
-	public static $source = 'en-us';
+	public $source = 'en-us';
+
+	/**
+	 * @var  string  target time zone: America/Chicago, Europe/London, etc
+	 */
+	public $time_zone = 'America/Chicago';
 
 	/**
 	 * @var  array  cache of loaded languages
 	 */
-	protected static $_cache = array();
+	protected $_cache = array();
 
 	/**
 	 * @var  Kohana_I18n  Singleton static instance
@@ -47,17 +52,14 @@ class Kohana_I18n {
 	 *
 	 * @return  Kohana_I18n
 	 */
-	public static function instance($lang = NULL)
+	public static function instance($lang = NULL, $time_zone = NULL)
 	{
 		if (self::$_instance === NULL)
 		{
 			// Create a new instance
 			self::$_instance = new self;
 
-			if ($lang !== NULL)
-			{
-				self::lang($lang);
-			}
+			self::$_instance->defaults($lang, $time_zone);
 		}
 
 		return self::$_instance;
@@ -66,7 +68,7 @@ class Kohana_I18n {
 	/**
 	 * @var  array  I18n readers
 	 */
-	protected static $_readers = array();
+	protected $_readers = array();
 
 	/**
 	 * Attach a i18n reader.
@@ -114,37 +116,82 @@ class Kohana_I18n {
 	 * @param    string   new language setting
 	 * @return   string
 	 */
-	public static function lang($lang = NULL)
+	public function lang($lang = NULL)
 	{
-		if ($lang)
-		{
-			// Normalize the language
-			self::$lang = strtolower(str_replace(array(' ', '_'), '-', $lang));
-		}
+		$lang = ($lang === NULL) ? $this->lang : $lang;
 
-		return self::$lang;
+		/**
+		 * Set the default locale.
+		 *
+		 * @see  http://kohanaframework.org/guide/using.configuration
+		 * @see  http://php.net/setlocale
+		 */
+		setlocale(LC_ALL, $lang.'.'.Kohana::$charset);
+
+		// Normalize the language
+		$this->lang = strtolower(str_replace(array(' ', '_'), '-', $lang));
+
+		return $this->lang;
+	}
+
+	/**
+	 * Get and set the target time zone.
+	 *
+	 * @param    string   new time zone setting
+	 * @return   string
+	 */
+	public function time_zone($time_zone = NULL)
+	{
+		$time_zone = ($time_zone === NULL) ? $this->time_zone : $time_zone;
+
+		/**
+		 * Set the default time zone.
+		 *
+		 * @see  http://kohanaframework.org/guide/using.configuration
+		 * @see  http://php.net/timezones
+		 */
+		date_default_timezone_set($time_zone);
+
+		$this->time_zone = $time_zone;
+
+		return $this->time_zone;
+	}
+
+	/**
+	 * Get and set the defaults.
+	 *
+	 * @param    string   new language setting
+	 * @return   string
+	 */
+	public function defaults($lang = NULL, $time_zone = NULL)
+	{
+		$this->lang($lang);
+
+		$this->time_zone($time_zone);
+
+		return $this;
 	}
 
 	/**
 	 * Returns translation of a string. If no translation exists, the original
 	 * string will be returned.
 	 *
-	 *     $hello = I18n::get('Hello friends, my name is :name');
+	 *     $hello = Kohana::$i18n->get('Hello friends, my name is :name');
 	 *
 	 * @param   string   text to translate
 	 * @param   string   target language
 	 * @return  string
 	 */
-	public static function get($string, $lang = NULL)
+	public function get($string, $lang = NULL)
 	{
 		if ( ! $lang)
 		{
 			// Use the global target language
-			$lang = I18n::$lang;
+			$lang = $this->lang;
 		}
 
 		// Load the translation table for this language
-		$table = I18n::load($lang);
+		$table = $this->load($lang);
 
 		// Return the translated string if it exists
 		return isset($table[$string]) ? $table[$string] : $string;
@@ -156,9 +203,9 @@ class Kohana_I18n {
 	 * @param   string  i18n lang
 	 * @return  object  Kohana_I18n_Reader
 	 */
-	public static function load($lang)
+	public function load($lang)
 	{
-		foreach (self::$_readers as $reader)
+		foreach ($this->_readers as $reader)
 		{
 			if ($i18n = $reader->load($lang))
 			{
@@ -168,11 +215,11 @@ class Kohana_I18n {
 		}
 
 		// Reset the iterator
-		reset(self::$_readers);
+		reset($this->_readers);
 
-		if ( ! is_object($i18n = current(self::$_readers)))
+		if ( ! is_object($i18n = current($this->_readers)))
 		{
-			throw new Kohana_Exception('No i18n readers attached');
+			throw new Kohana_I18n_Exception('No i18n readers attached');
 		}
 
 		// Load the reader as an empty array
